@@ -1,0 +1,105 @@
+import pymongo
+from dotenv import load_dotenv
+import os
+from bson import ObjectId
+import logging
+
+logging.basicConfig(level=logging.INFO)
+
+load_dotenv()
+
+DB_URL = os.getenv("DB_URL")
+
+def linePrint (numberOfStart) :
+    print("*" * numberOfStart)
+
+
+def print_banner(message: str):
+    linePrint(70)
+    print(message)
+    linePrint(70)
+
+def connectionDB () :
+    try :
+        myClient = pymongo.MongoClient(DB_URL )
+        dblist = myClient.list_database_names()
+        if "mydatabase" in dblist:
+           print("The database exists.")
+           return
+        myDB = myClient["youtube_manager"]
+        collectionList = myDB.list_collection_names()
+        if "youtubeData" in collectionList:
+           print("The collection exists.")
+
+        collection = myDB["youtubeData"]
+        return collection
+    except Exception as e :
+        logging.error("Database connection failed: %s", str(e))
+    
+def list_all_youtube_details (collection) :
+    for video in collection.find() :
+        print_banner(f"ID: {video['_id']} | Name: {video['name']} | Duration: {video['duration']}")
+
+def add_video_detail (collection) :
+    videoName = input("Enter a video name > ")
+    videoDuration = input("Enter a video duration > ")
+    collection.insert_one({ "name" : videoName , "duration" : videoDuration})
+    print_banner("Video detail added successfuly ✅")
+
+def update_video_detail (collection) :
+    print(list_all_youtube_details(collection))
+    video_id = input("Enter the video id to update > ")
+    isVideoExist = collection.find_one({"_id" : ObjectId(video_id)}) 
+    if not isVideoExist :
+        print_banner("Video not found ❌")
+        return
+      
+    newVideoName = input("Enter a new name to update > ")
+    newVideoDuration = input("Enter a new duration of video to update > ")
+    collection.update_one({"_id" : ObjectId(video_id)},{
+        "$set" : {
+            "name" : newVideoName,
+            "duration" : newVideoDuration
+        }
+    })
+    
+    print_banner("Video detail Update successful ✅")
+    
+def delete_video_detail (collection) :
+    print_banner(list_all_youtube_details(collection))
+    video_id = input("Enter the video id to delete > ")
+    is_video_exist = collection.find_one({"_id" : ObjectId(video_id)}) 
+    if not is_video_exist :
+        print_banner("Video not found ❌")
+        return
+    collection.delete_one({"_id" : ObjectId(video_id)})
+    print_banner("Video detail deleted successful ✅")
+
+def main() :
+    collection = connectionDB()
+    while True :
+        print("Youtube Manager")
+        print("1. List all youtube videos")
+        print("2. Add a youtbe video")
+        print("3. Update a youtube video detail")
+        print("4. Delete a youtube video detail")
+        print("5. Exit")
+
+        choice = input("Choose one option > ")
+
+        if choice == "1" :
+            list_all_youtube_details(collection)
+        elif choice == "2" :
+            add_video_detail(collection)
+        elif choice == "3" :
+            update_video_detail(collection)
+        elif choice == "4" :
+            delete_video_detail(collection)
+        elif choice == "5" :
+            break
+        else :
+            print_banner("Invalid choice ❌")
+    
+
+if __name__ == "__main__" :
+    main()
